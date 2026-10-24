@@ -12,7 +12,6 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.Socket;
 
-import model.NetworkPlayer;
 import ui.CheckerBoard;
 import ui.CheckersWindow;
 import ui.NetworkWindow;
@@ -185,10 +184,10 @@ public class CheckersNetworkHandler implements ActionListener {
 		// Check if both players are network players
 		// If so, forward the game state (i.e. this client acts as a router)
 		if (isPlayer1 &&
-				board.getPlayer2() instanceof NetworkPlayer) {
+				board.getPlayer2().isRemote()) {
 			board.sendGameState(window.getSession2());
 		} else if (!isPlayer1 &&
-				board.getPlayer1() instanceof NetworkPlayer) {
+				board.getPlayer1().isRemote()) {
 			board.sendGameState(window.getSession1());
 		}
 

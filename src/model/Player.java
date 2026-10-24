@@ -13,21 +13,22 @@ public abstract class Player {
 
 	/**
 	 * Determines how the game is updated. If true, the user must interact with
-	 * the user interface to make a move. Otherwise, the game is updated via
-	 * {@link #updateGame(Game)}.
-	 * 
+	 * the user interface to make a move. Otherwise, the game is updated by the
+	 * player itself (see {@link AutomatedPlayer}) or by a remote client.
+	 *
 	 * @return true if this player represents a user.
 	 */
 	public abstract boolean isHuman();
-	
+
 	/**
-	 * Updates the game state to take a move for the current player. If there
-	 * is a move available that is multiple skips, it may be performed at once
-	 * by this method or one skip at a time.
-	 * 
-	 * @param game	the game to update.
+	 * Determines if this player makes its moves on another client. If true,
+	 * the game state must be sent to that client through its network session.
+	 *
+	 * @return true if this player is on a remote client.
 	 */
-	public abstract void updateGame(Game game);
+	public boolean isRemote() {
+		return false;
+	}
 	
 	@Override
 	public String toString() {

@@ -18,10 +18,12 @@ public class NetworkPlayer extends Player {
 	}
 
 	/**
-	 * This method does not actually update the game state for network players
-	 * as it is updated when their client sends the updated game.
+	 * Network players are always remote, as the game state is updated when
+	 * their client sends the updated game.
 	 */
 	@Override
-	public void updateGame(Game game) {}
+	public boolean isRemote() {
+		return true;
+	}
 
 }

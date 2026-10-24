@@ -23,10 +23,10 @@ import javax.swing.JButton;
 import javax.swing.Timer;
 
 import logic.MoveGenerator;
+import model.AutomatedPlayer;
 import model.Board;
 import model.Game;
 import model.HumanPlayer;
-import model.NetworkPlayer;
 import model.Player;
 import network.Command;
 import network.Session;
@@ -115,19 +115,22 @@ public class CheckerBoard extends JButton {
 	
 	private void runPlayer() {
 		
-		// Nothing to do
-		Player player = getCurrentPlayer();
-		if (player == null || player.isHuman() ||
-				player instanceof NetworkPlayer) {
+		// Nothing to do, the player doesn't make its own moves
+		if (!(getCurrentPlayer() instanceof AutomatedPlayer)) {
 			return;
 		}
-		
+
 		// Set a timer to run
 		this.timer = new Timer(TIMER_DELAY, new ActionListener() {
 
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				getCurrentPlayer().updateGame(game);
+
+				// The player may have changed while waiting
+				Player player = getCurrentPlayer();
+				if (player instanceof AutomatedPlayer) {
+					((AutomatedPlayer) player).updateGame(game);
+				}
 				timer.stop();
 				updateNetwork();
 				update();
@@ -140,10 +143,10 @@ public class CheckerBoard extends JButton {
 		
 		// Get the relevant sessions to send to
 		List<Session> sessions = new ArrayList<>();
-		if (player1 instanceof NetworkPlayer) {
+		if (player1.isRemote()) {
 			sessions.add(window.getSession1());
 		}
-		if (player2 instanceof NetworkPlayer) {
+		if (player2.isRemote()) {
 			sessions.add(window.getSession2());
 		}
 		

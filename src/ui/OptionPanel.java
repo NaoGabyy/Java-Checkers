@@ -283,13 +283,13 @@ public class OptionPanel extends JPanel {
 			} else if (src == player1Opts) {
 				Player player = getPlayer(player1Opts);
 				window.setPlayer1(player);
-				isNetwork = (player instanceof NetworkPlayer);
+				isNetwork = player.isRemote();
 				btn = player1Btn;
 				s = window.getSession1();
 			} else if (src == player2Opts) {
 				Player player = getPlayer(player2Opts);
 				window.setPlayer2(player);
-				isNetwork = (player instanceof NetworkPlayer);
+				isNetwork = player.isRemote();
 				btn = player2Btn;
 				s = window.getSession2();
 				isP1 = false;

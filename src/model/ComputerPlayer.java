@@ -17,7 +17,7 @@ import logic.MoveLogic;
  * The {@code ComputerPlayer} class represents a computer player and updates
  * the board based on a model.
  */
-public class ComputerPlayer extends Player {
+public class ComputerPlayer extends AutomatedPlayer {
 	
 	/* ----- WEIGHTS ----- */
 	/** The weight of being able to skip. */
@@ -48,11 +48,6 @@ public class ComputerPlayer extends Player {
 	 * observed is a king. */
 	private static final double KING_FACTOR = 2;
 	/* ------------ */
-
-	@Override
-	public boolean isHuman() {
-		return false;
-	}
 
 	@Override
 	public void updateGame(Game game) {
