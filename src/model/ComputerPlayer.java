@@ -19,35 +19,24 @@ import logic.MoveLogic;
  */
 public class ComputerPlayer extends Player {
 	
-	/* ----- WEIGHTS ----- */
-	/** The weight of being able to skip. */
-	private static final double WEIGHT_SKIP = 25;
-	
-	/** The weight of being able to skip on next turn. */
-	private static final double SKIP_ON_NEXT = 20;
-	
-	/** The weight associated with being safe then safe before and after. */
-	private static final double SAFE_SAFE = 5;
+	/** The weights used to evaluate moves. */
+	private final MoveWeights weights;
 
-	/** The weight associated with being safe then unsafe before and after. */
-	private static final double SAFE_UNSAFE = -40;
+	/**
+	 * Creates a computer player that uses the default weights.
+	 */
+	public ComputerPlayer() {
+		this(new DefaultMoveWeights());
+	}
 
-	/** The weight associated with being unsafe then safe before and after. */
-	private static final double UNSAFE_SAFE = 40;
-
-	/** The weight associated with being unsafe then unsafe before and after. */
-	private static final double UNSAFE_UNSAFE = -40;
-	
-	/** The weight of a checker being safe. */
-	private static final double SAFE = 3;
-	
-	/** The weight of a checker being unsafe. */
-	private static final double UNSAFE = -5;
-	
-	/** The factor used to multiply some weights when the checker being
-	 * observed is a king. */
-	private static final double KING_FACTOR = 2;
-	/* ------------ */
+	/**
+	 * Creates a computer player that uses the specified weights.
+	 *
+	 * @param weights	the weights used to evaluate moves.
+	 */
+	public ComputerPlayer(MoveWeights weights) {
+		this.weights = weights;
+	}
 
 	@Override
 	public boolean isHuman() {
@@ -133,7 +122,7 @@ public class ComputerPlayer extends Player {
 			List<Point> skips = MoveGenerator.getSkips(b, index);
 			for (Point end : skips) {
 				Move m = new Move(index, Board.toIndex(end));
-				m.changeWeight(WEIGHT_SKIP);
+				m.changeWeight(weights.getSkip());
 				moves.add(m);
 			}
 		}
@@ -218,27 +207,28 @@ public class ComputerPlayer extends Player {
 			safeAfter = MoveLogic.isSafe(b, end);
 			int depth = getSkipDepth(game, endIndex, !game.isP1Turn());
 			if (safeAfter) {
-				m.changeWeight(SKIP_ON_NEXT * depth * depth);
+				m.changeWeight(weights.getSkipOnNext() * depth * depth);
 			} else {
-				m.changeWeight(SKIP_ON_NEXT);
+				m.changeWeight(weights.getSkipOnNext());
 			}
 		}
 		
 		// Check how many more skips are available
 		else {
 			int depth = getSkipDepth(game, startIndex, game.isP1Turn());
-			m.changeWeight(WEIGHT_SKIP * depth * depth);
+			m.changeWeight(weights.getSkip() * depth * depth);
 		}
 		
 		// Add the weight appropriate to how safe the checker is
 		if (safeBefore && safeAfter) {
-			m.changeWeight(SAFE_SAFE);
+			m.changeWeight(weights.getSafeSafe());
 		} else if (!safeBefore && safeAfter) {
-			m.changeWeight(UNSAFE_SAFE);
+			m.changeWeight(weights.getUnsafeSafe());
 		} else if (safeBefore && !safeAfter) {
-			m.changeWeight(SAFE_UNSAFE * (isKing? KING_FACTOR : 1));
+			m.changeWeight(weights.getSafeUnsafe() *
+					(isKing? weights.getKingFactor() : 1));
 		} else {
-			m.changeWeight(UNSAFE_UNSAFE);
+			m.changeWeight(weights.getUnsafeUnsafe());
 		}
 		m.changeWeight(getSafetyWeight(b,
 				changed? !game.isP1Turn() : game.isP1Turn()));
@@ -271,9 +261,10 @@ public class ComputerPlayer extends Player {
 			int index = Board.toIndex(checker);
 			int id = b.get(index);
 			if (MoveLogic.isSafe(b, checker)) {
-				weight += SAFE;
+				weight += weights.getSafe();
 			} else {
-				weight += UNSAFE * (Board.isKingChecker(id)? KING_FACTOR : 1);
+				weight += weights.getUnsafe() *
+						(Board.isKingChecker(id)? weights.getKingFactor() : 1);
 			}
 		}
 		
