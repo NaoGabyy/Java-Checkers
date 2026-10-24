@@ -29,7 +29,9 @@ import model.HumanPlayer;
 import model.NetworkPlayer;
 import model.Player;
 import network.Command;
+import network.GameSyncTarget;
 import network.Session;
+import network.SessionProvider;
 
 /**
  * The {@code CheckerBoard} class is a graphical user interface component that
@@ -38,7 +40,7 @@ import network.Session;
  * checker board. For non-human players, this means using the logic implemented
  * by the specified player object itself is used.
  */
-public class CheckerBoard extends JButton {
+public class CheckerBoard extends JButton implements GameSyncTarget {
 
 	private static final long serialVersionUID = -6014690893709316364L;
 	
@@ -52,8 +54,8 @@ public class CheckerBoard extends JButton {
 	/** The game of checkers that is being played on this component. */
 	private Game game;
 	
-	/** The window containing this checker board UI component. */
-	private CheckersWindow window;
+	/** The provider of the network sessions to send game updates to. */
+	private SessionProvider sessionProvider;
 	
 	/** The player in control of the black checkers. */
 	private Player player1;
@@ -81,11 +83,11 @@ public class CheckerBoard extends JButton {
 	/** The timer to control how fast a computer player makes a move. */
 	private Timer timer;
 	
-	public CheckerBoard(CheckersWindow window) {
-		this(window, new Game(), null, null);
+	public CheckerBoard(SessionProvider sessionProvider) {
+		this(sessionProvider, new Game(), null, null);
 	}
-	
-	public CheckerBoard(CheckersWindow window, Game game,
+
+	public CheckerBoard(SessionProvider sessionProvider, Game game,
 			Player player1, Player player2) {
 		
 		// Setup the component
@@ -99,7 +101,7 @@ public class CheckerBoard extends JButton {
 		this.game = (game == null)? new Game() : game;
 		this.lightTile = Color.WHITE;
 		this.darkTile = Color.BLACK;
-		this.window = window;
+		this.sessionProvider = sessionProvider;
 		setPlayer1(player1);
 		setPlayer2(player2);
 	}
@@ -107,6 +109,7 @@ public class CheckerBoard extends JButton {
 	/**
 	 * Checks if the game is over and redraws the component graphics.
 	 */
+	@Override
 	public void update() {
 		runPlayer();
 		this.isGameOver = game.isGameOver();
@@ -141,10 +144,10 @@ public class CheckerBoard extends JButton {
 		// Get the relevant sessions to send to
 		List<Session> sessions = new ArrayList<>();
 		if (player1 instanceof NetworkPlayer) {
-			sessions.add(window.getSession1());
+			sessions.add(sessionProvider.getSession1());
 		}
 		if (player2 instanceof NetworkPlayer) {
-			sessions.add(window.getSession2());
+			sessions.add(sessionProvider.getSession2());
 		}
 		
 		// Send the game update
@@ -153,6 +156,7 @@ public class CheckerBoard extends JButton {
 		}
 	}
 	
+	@Override
 	public synchronized boolean setGameState(boolean testValue,
 			String newState, String expected) {
 		
@@ -168,6 +172,7 @@ public class CheckerBoard extends JButton {
 		return true;
 	}
 	
+	@Override
 	public void sendGameState(Session s) {
 
 		if (s == null) {
@@ -323,6 +328,7 @@ public class CheckerBoard extends JButton {
 		}
 	}
 	
+	@Override
 	public Game getGame() {
 		return game;
 	}
@@ -331,14 +337,15 @@ public class CheckerBoard extends JButton {
 		this.game = (game == null)? new Game() : game;
 	}
 
-	public CheckersWindow getWindow() {
-		return window;
+	public SessionProvider getSessionProvider() {
+		return sessionProvider;
 	}
 
-	public void setWindow(CheckersWindow window) {
-		this.window = window;
+	public void setSessionProvider(SessionProvider sessionProvider) {
+		this.sessionProvider = sessionProvider;
 	}
 
+	@Override
 	public Player getPlayer1() {
 		return player1;
 	}
@@ -350,6 +357,7 @@ public class CheckerBoard extends JButton {
 		}
 	}
 
+	@Override
 	public Player getPlayer2() {
 		return player2;
 	}
@@ -361,6 +369,7 @@ public class CheckerBoard extends JButton {
 		}
 	}
 	
+	@Override
 	public Player getCurrentPlayer() {
 		return game.isP1Turn()? player1 : player2;
 	}

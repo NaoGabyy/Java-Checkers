@@ -15,13 +15,14 @@ import model.Player;
 import network.CheckersNetworkHandler;
 import network.ConnectionListener;
 import network.Session;
+import network.SessionProvider;
 
 /**
  * The {@code CheckersWindow} class is responsible for managing a window. This
  * window contains a game of checkers and also options to change the settings
  * of the game with an {@link OptionPanel}.
  */
-public class CheckersWindow extends JFrame {
+public class CheckersWindow extends JFrame implements SessionProvider {
 
 	private static final long serialVersionUID = 8782122389400590079L;
 	
@@ -114,10 +115,12 @@ public class CheckersWindow extends JFrame {
 		this.board.getGame().setGameState(state);
 	}
 	
+	@Override
 	public Session getSession1() {
 		return session1;
 	}
 
+	@Override
 	public Session getSession2() {
 		return session2;
 	}

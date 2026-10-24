@@ -13,10 +13,7 @@ import java.io.OutputStream;
 import java.net.Socket;
 
 import model.NetworkPlayer;
-import ui.CheckerBoard;
-import ui.CheckersWindow;
 import ui.NetworkWindow;
-import ui.OptionPanel;
 
 /**
  * The {@code CheckersNetworkHandler} class handles incoming connections from
@@ -43,17 +40,17 @@ public class CheckersNetworkHandler implements ActionListener {
 	 * 1 or not. */
 	private boolean isPlayer1;
 
-	/** The checkers window. */
-	private CheckersWindow window;
+	/** The provider of the network sessions of each player. */
+	private SessionProvider window;
 
-	/** The checker board from the checkers window. */
-	private CheckerBoard board;
-	
-	/** The option panel in the checkers window. */
-	private OptionPanel opts;
+	/** The game to synchronize with the remote clients. */
+	private GameSyncTarget board;
 
-	public CheckersNetworkHandler(boolean isPlayer1, CheckersWindow window,
-			CheckerBoard board, OptionPanel opts) {
+	/** The provider of the network windows of each player. */
+	private NetworkWindowProvider opts;
+
+	public CheckersNetworkHandler(boolean isPlayer1, SessionProvider window,
+			GameSyncTarget board, NetworkWindowProvider opts) {
 		this.isPlayer1 = isPlayer1;
 		this.window = window;
 		this.board = board;

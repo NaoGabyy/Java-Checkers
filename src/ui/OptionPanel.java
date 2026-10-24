@@ -23,13 +23,14 @@ import model.Player;
 import network.CheckersNetworkHandler;
 import network.Command;
 import network.ConnectionListener;
+import network.NetworkWindowProvider;
 import network.Session;
 
 /**
  * The {@code OptionPanel} class provides a user interface component to control
  * options for the game of checkers being played in the window.
  */
-public class OptionPanel extends JPanel {
+public class OptionPanel extends JPanel implements NetworkWindowProvider {
 
 	private static final long serialVersionUID = -4763875452164030755L;
 
@@ -119,10 +120,12 @@ public class OptionPanel extends JPanel {
 		}
 	}
 	
+	@Override
 	public NetworkWindow getNetworkWindow1() {
 		return player1Net;
 	}
-	
+
+	@Override
 	public NetworkWindow getNetworkWindow2() {
 		return player2Net;
 	}
