@@ -9,14 +9,10 @@
 package ui;
 
 import java.awt.Color;
-import java.awt.Font;
 import java.awt.Graphics;
-import java.awt.Graphics2D;
 import java.awt.Point;
-import java.awt.RenderingHints;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.util.ArrayList;
 import java.util.List;
 
 import javax.swing.JButton;
@@ -28,7 +24,6 @@ import model.Game;
 import model.HumanPlayer;
 import model.NetworkPlayer;
 import model.Player;
-import network.Command;
 import network.Session;
 
 /**
@@ -44,16 +39,15 @@ public class CheckerBoard extends JButton {
 	
 	/** The amount of milliseconds before a computer player takes a move. */
 	private static final int TIMER_DELAY = 1000;
-	
-	/** The number of pixels of padding between this component's border and the
-	 * actual checker board that is drawn. */
-	private static final int PADDING = 16;
 
 	/** The game of checkers that is being played on this component. */
 	private Game game;
-	
-	/** The window containing this checker board UI component. */
-	private CheckersWindow window;
+
+	/** Draws the game state on this component. */
+	private BoardRenderer renderer;
+
+	/** Sends the game state to the network players. */
+	private GameNetworkSync networkSync;
 	
 	/** The player in control of the black checkers. */
 	private Player player1;
@@ -68,13 +62,7 @@ public class CheckerBoard extends JButton {
 	 * is valid, a green colour is used to highlight the tile. Otherwise, a red
 	 * colour is used. */
 	private boolean selectionValid;
-	
-	/** The colour of the light tiles (by default, this is white). */
-	private Color lightTile;
 
-	/** The colour of the dark tiles (by default, this is black). */
-	private Color darkTile;
-	
 	/** A convenience flag to check if the game is over. */
 	private boolean isGameOver;
 	
@@ -97,9 +85,8 @@ public class CheckerBoard extends JButton {
 		
 		// Setup the game
 		this.game = (game == null)? new Game() : game;
-		this.lightTile = Color.WHITE;
-		this.darkTile = Color.BLACK;
-		this.window = window;
+		this.renderer = new BoardRenderer();
+		this.networkSync = new GameNetworkSync(window);
 		setPlayer1(player1);
 		setPlayer2(player2);
 	}
@@ -137,20 +124,7 @@ public class CheckerBoard extends JButton {
 	}
 	
 	public void updateNetwork() {
-		
-		// Get the relevant sessions to send to
-		List<Session> sessions = new ArrayList<>();
-		if (player1 instanceof NetworkPlayer) {
-			sessions.add(window.getSession1());
-		}
-		if (player2 instanceof NetworkPlayer) {
-			sessions.add(window.getSession2());
-		}
-		
-		// Send the game update
-		for (Session s : sessions) {
-			sendGameState(s);
-		}
+		networkSync.updateNetwork(game, player1, player2);
 	}
 	
 	public synchronized boolean setGameState(boolean testValue,
@@ -169,17 +143,7 @@ public class CheckerBoard extends JButton {
 	}
 	
 	public void sendGameState(Session s) {
-
-		if (s == null) {
-			return;
-		}
-		
-		// Create the command and send it
-		Command update = new Command(Command.COMMAND_UPDATE,
-				s.getSid(), game.getGameState());
-		String host = s.getDestinationHost();
-		int port = s.getDestinationPort();
-		update.send(host, port);
+		networkSync.sendGameState(game, s);
 	}
 	
 	/**
@@ -188,139 +152,8 @@ public class CheckerBoard extends JButton {
 	@Override
 	public void paint(Graphics g) {
 		super.paint(g);
-		
-		Graphics2D g2d = (Graphics2D) g;
-		g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
-				RenderingHints.VALUE_ANTIALIAS_ON);
-		Game game = this.game.copy();
-		
-		// Perform calculations
-		final int BOX_PADDING = 4;
-		final int W = getWidth(), H = getHeight();
-		final int DIM = W < H? W : H, BOX_SIZE = (DIM - 2 * PADDING) / 8;
-		final int OFFSET_X = (W - BOX_SIZE * 8) / 2;
-		final int OFFSET_Y = (H - BOX_SIZE * 8) / 2;
-		final int CHECKER_SIZE = Math.max(0, BOX_SIZE - 2 * BOX_PADDING);
-		
-		// Draw checker board
-		g.setColor(Color.BLACK);
-		g.drawRect(OFFSET_X - 1, OFFSET_Y - 1, BOX_SIZE * 8 + 1, BOX_SIZE * 8 + 1);
-		g.setColor(lightTile);
-		g.fillRect(OFFSET_X, OFFSET_Y, BOX_SIZE * 8, BOX_SIZE * 8);
-		g.setColor(darkTile);
-		for (int y = 0; y < 8; y ++) {
-			for (int x = (y + 1) % 2; x < 8; x += 2) {
-				g.fillRect(OFFSET_X + x * BOX_SIZE, OFFSET_Y + y * BOX_SIZE,
-						BOX_SIZE, BOX_SIZE);
-			}
-		}
-		
-		// Highlight the selected tile if valid
-		if (Board.isValidPoint(selected)) {
-			g.setColor(selectionValid? Color.GREEN : Color.RED);
-			g.fillRect(OFFSET_X + selected.x * BOX_SIZE,
-					OFFSET_Y + selected.y * BOX_SIZE,
-					BOX_SIZE, BOX_SIZE);
-		}
-		
-		// Draw the checkers
-		Board b = game.getBoard();
-		for (int y = 0; y < 8; y ++) {
-			int cy = OFFSET_Y + y * BOX_SIZE + BOX_PADDING;
-			for (int x = (y + 1) % 2; x < 8; x += 2) {
-				int id = b.get(x, y);
-				
-				// Empty, just skip
-				if (id == Board.EMPTY) {
-					continue;
-				}
-				
-				int cx = OFFSET_X + x * BOX_SIZE + BOX_PADDING;
-				
-				// Black checker
-				if (id == Board.BLACK_CHECKER) {
-					g.setColor(Color.DARK_GRAY);
-					g.fillOval(cx + 1, cy + 2, CHECKER_SIZE, CHECKER_SIZE);
-					g.setColor(Color.LIGHT_GRAY);
-					g.drawOval(cx + 1, cy + 2, CHECKER_SIZE, CHECKER_SIZE);
-					g.setColor(Color.BLACK);
-					g.fillOval(cx, cy, CHECKER_SIZE, CHECKER_SIZE);
-					g.setColor(Color.LIGHT_GRAY);
-					g.drawOval(cx, cy, CHECKER_SIZE, CHECKER_SIZE);
-				}
-				
-				// Black king
-				else if (id == Board.BLACK_KING) {
-					g.setColor(Color.DARK_GRAY);
-					g.fillOval(cx + 1, cy + 2, CHECKER_SIZE, CHECKER_SIZE);
-					g.setColor(Color.LIGHT_GRAY);
-					g.drawOval(cx + 1, cy + 2, CHECKER_SIZE, CHECKER_SIZE);
-					g.setColor(Color.DARK_GRAY);
-					g.fillOval(cx, cy, CHECKER_SIZE, CHECKER_SIZE);
-					g.setColor(Color.LIGHT_GRAY);
-					g.drawOval(cx, cy, CHECKER_SIZE, CHECKER_SIZE);
-					g.setColor(Color.BLACK);
-					g.fillOval(cx - 1, cy - 2, CHECKER_SIZE, CHECKER_SIZE);
-				}
-				
-				// White checker
-				else if (id == Board.WHITE_CHECKER) {
-					g.setColor(Color.LIGHT_GRAY);
-					g.fillOval(cx + 1, cy + 2, CHECKER_SIZE, CHECKER_SIZE);
-					g.setColor(Color.DARK_GRAY);
-					g.drawOval(cx + 1, cy + 2, CHECKER_SIZE, CHECKER_SIZE);
-					g.setColor(Color.WHITE);
-					g.fillOval(cx, cy, CHECKER_SIZE, CHECKER_SIZE);
-					g.setColor(Color.DARK_GRAY);
-					g.drawOval(cx, cy, CHECKER_SIZE, CHECKER_SIZE);
-				}
-				
-				// White king
-				else if (id == Board.WHITE_KING) {
-					g.setColor(Color.LIGHT_GRAY);
-					g.fillOval(cx + 1, cy + 2, CHECKER_SIZE, CHECKER_SIZE);
-					g.setColor(Color.DARK_GRAY);
-					g.drawOval(cx + 1, cy + 2, CHECKER_SIZE, CHECKER_SIZE);
-					g.setColor(Color.LIGHT_GRAY);
-					g.fillOval(cx, cy, CHECKER_SIZE, CHECKER_SIZE);
-					g.setColor(Color.DARK_GRAY);
-					g.drawOval(cx, cy, CHECKER_SIZE, CHECKER_SIZE);
-					g.setColor(Color.WHITE);
-					g.fillOval(cx - 1, cy - 2, CHECKER_SIZE, CHECKER_SIZE);
-				}
-				
-				// Any king (add some extra highlights)
-				if (Board.isKingChecker(id)) {
-					g.setColor(new Color(255, 240, 0));
-					g.drawOval(cx - 1, cy - 2, CHECKER_SIZE, CHECKER_SIZE);
-					g.drawOval(cx + 1, cy, CHECKER_SIZE - 4, CHECKER_SIZE - 4);
-				}
-			}
-		}
-		
-		// Draw the player turn sign
-		String msg = game.isP1Turn()? "Player 1's turn" : "Player 2's turn";
-		int width = g.getFontMetrics().stringWidth(msg);
-		Color back = game.isP1Turn()? Color.BLACK : Color.WHITE;
-		Color front = game.isP1Turn()? Color.WHITE : Color.BLACK;
-		g.setColor(back);
-		g.fillRect(W / 2 - width / 2 - 5, OFFSET_Y + 8 * BOX_SIZE + 2,
-				width + 10, 15);
-		g.setColor(front);
-		g.drawString(msg, W / 2 - width / 2, OFFSET_Y + 8 * BOX_SIZE + 2 + 12);
-		
-		// Draw a game over sign
-		if (isGameOver) {
-			g.setFont(new Font("Arial", Font.BOLD, 20));
-			msg = "Game Over!";
-			width = g.getFontMetrics().stringWidth(msg);
-			g.setColor(new Color(240, 240, 255));
-			g.fillRoundRect(W / 2 - width / 2 - 5,
-					OFFSET_Y + BOX_SIZE * 4 - 16,
-					width + 10, 30, 10, 10);
-			g.setColor(Color.RED);
-			g.drawString(msg, W / 2 - width / 2, OFFSET_Y + BOX_SIZE * 4 + 7);
-		}
+		renderer.render(g, game.copy(), getWidth(), getHeight(),
+				selected, selectionValid, isGameOver);
 	}
 	
 	public Game getGame() {
@@ -332,11 +165,11 @@ public class CheckerBoard extends JButton {
 	}
 
 	public CheckersWindow getWindow() {
-		return window;
+		return networkSync.getWindow();
 	}
 
 	public void setWindow(CheckersWindow window) {
-		this.window = window;
+		networkSync.setWindow(window);
 	}
 
 	public Player getPlayer1() {
@@ -366,19 +199,19 @@ public class CheckerBoard extends JButton {
 	}
 
 	public Color getLightTile() {
-		return lightTile;
+		return renderer.getLightTile();
 	}
 
 	public void setLightTile(Color lightTile) {
-		this.lightTile = (lightTile == null)? Color.WHITE : lightTile;
+		renderer.setLightTile(lightTile);
 	}
 
 	public Color getDarkTile() {
-		return darkTile;
+		return renderer.getDarkTile();
 	}
 
 	public void setDarkTile(Color darkTile) {
-		this.darkTile = (darkTile == null)? Color.BLACK : darkTile;
+		renderer.setDarkTile(darkTile);
 	}
 
 	/**
@@ -401,7 +234,7 @@ public class CheckerBoard extends JButton {
 		
 		// Determine what square (if any) was selected
 		final int W = getWidth(), H = getHeight();
-		final int DIM = W < H? W : H, BOX_SIZE = (DIM - 2 * PADDING) / 8;
+		final int DIM = W < H? W : H, BOX_SIZE = (DIM - 2 * BoardRenderer.PADDING) / 8;
 		final int OFFSET_X = (W - BOX_SIZE * 8) / 2;
 		final int OFFSET_Y = (H - BOX_SIZE * 8) / 2;
 		x = (x - OFFSET_X) / BOX_SIZE;

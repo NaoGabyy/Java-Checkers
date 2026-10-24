@@ -52,12 +52,16 @@ public class CheckersNetworkHandler implements ActionListener {
 	/** The option panel in the checkers window. */
 	private OptionPanel opts;
 
+	/** Validates the session ID of the requests. */
+	private SessionAuthenticator authenticator;
+
 	public CheckersNetworkHandler(boolean isPlayer1, CheckersWindow window,
 			CheckerBoard board, OptionPanel opts) {
 		this.isPlayer1 = isPlayer1;
 		this.window = window;
 		this.board = board;
 		this.opts = opts;
+		this.authenticator = new SessionAuthenticator();
 	}
 
 	/**
@@ -73,32 +77,26 @@ public class CheckersNetworkHandler implements ActionListener {
 
 		// Get the data from the connection
 		ConnectionHandler handler = (ConnectionHandler) e.getSource();
-		String data = ConnectionListener.read(handler.getSocket());
-		data = data.replace("\r\n", "\n");
-		
+		NetworkRequest request = NetworkRequest.read(handler.getSocket());
+
 		// Unable to handle
 		if (window == null || board == null || opts == null) {
 			sendResponse(handler, "Client error: invalid network handler.");
 			return;
 		}
-		
+
 		Session s1 = window.getSession1(), s2 = window.getSession2();
 
 		// Determine if a valid user
-		String[] lines = data.split("\n");
-		String cmd = lines[0].split(" ")[0].toUpperCase();
-		String sid = lines.length > 1? lines[1] : "";
+		String cmd = request.getCommand();
+		String sid = request.getSid();
 		String response = "";
-		boolean match = false;
-		if (isPlayer1) {
-			match = sid.equals(s1.getSid());
-		} else {
-			match = sid.equals(s2.getSid());
-		}
+		boolean match = authenticator.isAuthenticated(
+				request, isPlayer1? s1 : s2);
 
 		// A connected client wants to update the board
 		if (cmd.equals(Command.COMMAND_UPDATE)) {
-			String newState = (match && lines.length > 2? lines[2] : "");
+			String newState = (match? request.getData() : "");
 			response = handleUpdate(newState);
 		}
 		
@@ -112,7 +110,7 @@ public class CheckersNetworkHandler implements ActionListener {
 			} catch (NumberFormatException err) {}
 			
 			// Determine if the client attempting to connect is player 1
-			String isP1 = (lines.length > 2? lines[2] : "");
+			String isP1 = request.getData();
 			boolean remotePlayer1 = isP1.startsWith("1");
 			
 			// Handle the connect request

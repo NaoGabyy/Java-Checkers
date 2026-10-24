@@ -20,9 +20,8 @@ import model.ComputerPlayer;
 import model.HumanPlayer;
 import model.NetworkPlayer;
 import model.Player;
-import network.CheckersNetworkHandler;
-import network.Command;
-import network.ConnectionListener;
+import network.NetworkConnectionService;
+import network.NetworkConnectionService.ConnectResult;
 import network.Session;
 
 /**
@@ -35,7 +34,10 @@ public class OptionPanel extends JPanel {
 
 	/** The checkers window to update when an option is changed. */
 	private CheckersWindow window;
-	
+
+	/** The service to listen, connect and disconnect the network sessions. */
+	private NetworkConnectionService connectionService;
+
 	/** The button that when clicked, restarts the game. */
 	private JButton restartBtn;
 	
@@ -66,7 +68,8 @@ public class OptionPanel extends JPanel {
 		super(new GridLayout(0, 1));
 		
 		this.window = window;
-		
+		this.connectionService = new NetworkConnectionService();
+
 		// Initialize the components
 		OptionListener ol = new OptionListener();
 		final String[] playerTypeOpts = {"Human", "Computer", "Network"};
@@ -143,22 +146,18 @@ public class OptionPanel extends JPanel {
 		if (e.getID() == NetworkWindow.LISTEN_BUTTON) {
 			
 			// Validate the port
-			if (srcPort < 1025 || srcPort > 65535) {
+			if (!connectionService.isValidPort(srcPort)) {
 				win.setMessage("  Error: source port must be"
 						+ " between 1025 and 65535. ");
 				return;
 			}
-			if (!ConnectionListener.available(srcPort)) {
+			if (!connectionService.isPortAvailable(srcPort)) {
 				win.setMessage("  Error: source port " + srcPort+ " is not available.");
 				return;
 			}
-			
-			// Update the server if necessary
-			if (s.getListener().getPort() != srcPort) {
-				s.getListener().stopListening();
-			}
-			s.getListener().setPort(srcPort);
-			s.getListener().listen();
+
+			// Start listening
+			connectionService.listen(s, srcPort);
 			win.setMessage("  This client is listening on port " + srcPort);
 			win.setCanUpdateListen(false);
 			win.setCanUpdateConnect(true);
@@ -168,7 +167,7 @@ public class OptionPanel extends JPanel {
 		else if (e.getID() == NetworkWindow.CONNECT_BUTTON) {
 			
 			// Validate the port and host
-			if (destPort < 1025 || destPort > 65535) {
+			if (!connectionService.isValidPort(destPort)) {
 				win.setMessage("  Error: destination port must be "
 						+ "between 1025 and 65535. ");
 				return;
@@ -176,22 +175,20 @@ public class OptionPanel extends JPanel {
 			if (destHost == null || destHost.isEmpty()) {
 				destHost = "127.0.0.1";
 			}
-			
+
 			// Connect to the proposed host
-			Command connect = new Command(Command.COMMAND_CONNECT,
-					win.getSourcePort() + "", isPlayer1? "1" : "0");
-			String response = connect.send(destHost, destPort);
-			
+			ConnectResult result = connectionService.connect(
+					s, srcPort, destHost, destPort, isPlayer1);
+
 			// No response
-			if (response.isEmpty()) {
+			if (result.getStatus() == ConnectResult.Status.NO_RESPONSE) {
 				win.setMessage("  Error: could not connect to " + destHost +
 						":" + destPort + ".");
 			}
-			
+
 			// It was a valid client, but refused to connect
-			else if (response.startsWith(CheckersNetworkHandler.RESPONSE_DENIED)) {
-				String[] lines = response.split("\n");
-				String errMsg = lines.length > 1? lines[1] : "";
+			else if (result.getStatus() == ConnectResult.Status.DENIED) {
+				String errMsg = result.getErrorMessage();
 				if (errMsg.isEmpty()) {
 					win.setMessage("  Error: the other client refused to connect.");
 				} else {
@@ -200,26 +197,13 @@ public class OptionPanel extends JPanel {
 			}
 			
 			// The connection was accepted by the checkers client
-			else if (response.startsWith(CheckersNetworkHandler.RESPONSE_ACCEPTED)){
-				
-				// Update the session
-				s.setDestinationHost(destHost);
-				s.setDestinationPort(destPort);
+			else if (result.getStatus() == ConnectResult.Status.ACCEPTED) {
 				win.setMessage("  Successfully started a session with " +
 						destHost + ":" + destPort + ".");
 				win.setCanUpdateConnect(false);
-								
-				// Update the SID
-				String[] lines = response.split("\n");
-				String sid = lines.length > 1? lines[1] : "";
-				s.setSid(sid);
-				
-				// Get the new game state
-				Command get = new Command(Command.COMMAND_GET, sid, null);
-				response = get.send(destHost, destPort);
-				lines = response.split("\n");
-				String state = lines.length > 1? lines[1] : "";
-				window.setGameState(state);
+
+				// Show the new game state
+				window.setGameState(result.getGameState());
 			}
 			
 			// General error, maybe the user tried a web server and
@@ -308,18 +292,9 @@ public class OptionPanel extends JPanel {
 			if (btn != null) {
 				
 				// Disconnect if required
-				String sid = s.getSid();
 				if (!isNetwork && btn.isVisible() &&
-						sid != null && !sid.isEmpty()) {
-					
-					// Send the request
-					Command disconnect = new Command(
-							Command.COMMAND_DISCONNECT, sid);
-					disconnect.send(
-							s.getDestinationHost(), s.getDestinationPort());
-					
-					// Update the session
-					s.setSid(null);
+						connectionService.isConnected(s)) {
+					connectionService.disconnect(s);
 					NetworkWindow win = isP1? player1Net : player2Net;
 					win.setCanUpdateConnect(true);
 				}
