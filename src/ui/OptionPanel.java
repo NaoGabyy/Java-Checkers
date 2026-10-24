@@ -16,10 +16,10 @@ import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 
-import model.ComputerPlayer;
 import model.HumanPlayer;
 import model.NetworkPlayer;
 import model.Player;
+import model.PlayerRegistry;
 import network.CheckersNetworkHandler;
 import network.Command;
 import network.ConnectionListener;
@@ -35,7 +35,10 @@ public class OptionPanel extends JPanel {
 
 	/** The checkers window to update when an option is changed. */
 	private CheckersWindow window;
-	
+
+	/** The types of players that can be selected. */
+	private PlayerRegistry playerTypes;
+
 	/** The button that when clicked, restarts the game. */
 	private JButton restartBtn;
 	
@@ -63,13 +66,25 @@ public class OptionPanel extends JPanel {
 	 * @param window	the window with the game of checkers to update.
 	 */
 	public OptionPanel(CheckersWindow window) {
+		this(window, PlayerRegistry.createDefault());
+	}
+
+	/**
+	 * Creates a new option panel for the specified checkers window with the
+	 * specified types of players.
+	 *
+	 * @param window		the window with the game of checkers to update.
+	 * @param playerTypes	the types of players that can be selected.
+	 */
+	public OptionPanel(CheckersWindow window, PlayerRegistry playerTypes) {
 		super(new GridLayout(0, 1));
-		
+
 		this.window = window;
-		
+		this.playerTypes = playerTypes;
+
 		// Initialize the components
 		OptionListener ol = new OptionListener();
-		final String[] playerTypeOpts = {"Human", "Computer", "Network"};
+		final String[] playerTypeOpts = playerTypes.getNames();
 		this.restartBtn = new JButton("Restart");
 		this.player1Opts = new JComboBox<>(playerTypeOpts);
 		this.player2Opts = new JComboBox<>(playerTypeOpts);
@@ -239,22 +254,14 @@ public class OptionPanel extends JPanel {
 	 * @return a new instance of a {@link model.Player} object that corresponds
 	 * with the type of player selected.
 	 */
-	private static Player getPlayer(JComboBox<String> playerOpts) {
-		
-		Player player = new HumanPlayer();
+	private Player getPlayer(JComboBox<String> playerOpts) {
+
 		if (playerOpts == null) {
-			return player;
+			return new HumanPlayer();
 		}
-		
-		// Determine the type
-		String type = "" + playerOpts.getSelectedItem();
-		if (type.equals("Computer")) {
-			player = new ComputerPlayer();
-		} else if (type.equals("Network")) {
-			player = new NetworkPlayer();
-		}
-		
-		return player;
+
+		// Create the selected type
+		return playerTypes.create("" + playerOpts.getSelectedItem());
 	}
 	
 	/**
