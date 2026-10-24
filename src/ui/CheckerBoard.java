@@ -28,7 +28,6 @@ import model.Game;
 import model.HumanPlayer;
 import model.NetworkPlayer;
 import model.Player;
-import network.Command;
 import network.Session;
 
 /**
@@ -54,7 +53,10 @@ public class CheckerBoard extends JButton {
 	
 	/** The window containing this checker board UI component. */
 	private CheckersWindow window;
-	
+
+	/** Sends the game state to the remote clients. */
+	private GameStateSender sender;
+
 	/** The player in control of the black checkers. */
 	private Player player1;
 	
@@ -81,12 +83,12 @@ public class CheckerBoard extends JButton {
 	/** The timer to control how fast a computer player makes a move. */
 	private Timer timer;
 	
-	public CheckerBoard(CheckersWindow window) {
-		this(window, new Game(), null, null);
+	public CheckerBoard(CheckersWindow window, GameStateSender sender) {
+		this(window, new Game(), null, null, sender);
 	}
-	
+
 	public CheckerBoard(CheckersWindow window, Game game,
-			Player player1, Player player2) {
+			Player player1, Player player2, GameStateSender sender) {
 		
 		// Setup the component
 		super.setBorderPainted(false);
@@ -100,6 +102,7 @@ public class CheckerBoard extends JButton {
 		this.lightTile = Color.WHITE;
 		this.darkTile = Color.BLACK;
 		this.window = window;
+		this.sender = sender;
 		setPlayer1(player1);
 		setPlayer2(player2);
 	}
@@ -173,13 +176,8 @@ public class CheckerBoard extends JButton {
 		if (s == null) {
 			return;
 		}
-		
-		// Create the command and send it
-		Command update = new Command(Command.COMMAND_UPDATE,
-				s.getSid(), game.getGameState());
-		String host = s.getDestinationHost();
-		int port = s.getDestinationPort();
-		update.send(host, port);
+
+		sender.send(s, game.getGameState());
 	}
 	
 	/**

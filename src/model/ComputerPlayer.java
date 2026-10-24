@@ -10,8 +10,7 @@ import java.awt.Point;
 import java.util.ArrayList;
 import java.util.List;
 
-import logic.MoveGenerator;
-import logic.MoveLogic;
+import logic.StandardCheckersRules;
 
 /**
  * The {@code ComputerPlayer} class represents a computer player and updates
@@ -48,6 +47,25 @@ public class ComputerPlayer extends Player {
 	 * observed is a king. */
 	private static final double KING_FACTOR = 2;
 	/* ------------ */
+
+	/** The rules used to find and evaluate moves. */
+	private final MoveRules rules;
+
+	/**
+	 * Creates a computer player that uses the standard checkers rules.
+	 */
+	public ComputerPlayer() {
+		this(new StandardCheckersRules());
+	}
+
+	/**
+	 * Creates a computer player that uses the specified rules.
+	 *
+	 * @param rules	the rules used to find and evaluate moves.
+	 */
+	public ComputerPlayer(MoveRules rules) {
+		this.rules = rules;
+	}
 
 	@Override
 	public boolean isHuman() {
@@ -106,7 +124,7 @@ public class ComputerPlayer extends Player {
 		if (game.getSkipIndex() >= 0) {
 			
 			List<Move> moves = new ArrayList<>();
-			List<Point> skips = MoveGenerator.getSkips(game.getBoard(),
+			List<Point> skips = rules.getSkips(game.getBoard(),
 					game.getSkipIndex());
 			for (Point end : skips) {
 				moves.add(new Move(game.getSkipIndex(), Board.toIndex(end)));
@@ -130,7 +148,7 @@ public class ComputerPlayer extends Player {
 		List<Move> moves = new ArrayList<>();
 		for (Point checker : checkers) {
 			int index = Board.toIndex(checker);
-			List<Point> skips = MoveGenerator.getSkips(b, index);
+			List<Point> skips = rules.getSkips(b, index);
 			for (Point end : skips) {
 				Move m = new Move(index, Board.toIndex(end));
 				m.changeWeight(WEIGHT_SKIP);
@@ -142,7 +160,7 @@ public class ComputerPlayer extends Player {
 		if (moves.isEmpty()) {
 			for (Point checker : checkers) {
 				int index = Board.toIndex(checker);
-				List<Point> movesEnds = MoveGenerator.getMoves(b, index);
+				List<Point> movesEnds = rules.getMoves(b, index);
 				for (Point end : movesEnds) {
 					moves.add(new Move(index, Board.toIndex(end)));
 				}
@@ -169,7 +187,7 @@ public class ComputerPlayer extends Player {
 		}
 		
 		// Recursively get the depth
-		List<Point> skips = MoveGenerator.getSkips(game.getBoard(), startIndex);
+		List<Point> skips = rules.getSkips(game.getBoard(), startIndex);
 		int depth = 0;
 		for (Point end : skips) {
 			int endIndex = Board.toIndex(end);
@@ -197,7 +215,7 @@ public class ComputerPlayer extends Player {
 		int startIndex = Board.toIndex(start), endIndex = Board.toIndex(end);
 		Board b = game.getBoard();
 		boolean changed = game.isP1Turn();
-		boolean safeBefore = MoveLogic.isSafe(b, start);
+		boolean safeBefore = rules.isSafe(b, start);
 		
 		// Set the initial weight
 		m.changeWeight(getSafetyWeight(b, game.isP1Turn()));
@@ -215,7 +233,7 @@ public class ComputerPlayer extends Player {
 		
 		// Determine if a skip could be made on next move
 		if (changed) {
-			safeAfter = MoveLogic.isSafe(b, end);
+			safeAfter = rules.isSafe(b, end);
 			int depth = getSkipDepth(game, endIndex, !game.isP1Turn());
 			if (safeAfter) {
 				m.changeWeight(SKIP_ON_NEXT * depth * depth);
@@ -270,7 +288,7 @@ public class ComputerPlayer extends Player {
 		for (Point checker : checkers) {
 			int index = Board.toIndex(checker);
 			int id = b.get(index);
-			if (MoveLogic.isSafe(b, checker)) {
+			if (rules.isSafe(b, checker)) {
 				weight += SAFE;
 			} else {
 				weight += UNSAFE * (Board.isKingChecker(id)? KING_FACTOR : 1);

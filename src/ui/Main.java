@@ -53,7 +53,7 @@ public class Main {
 		}
 		
 		// Create a window to display the checkers game
-		CheckersWindow window = new CheckersWindow();
+		CheckersWindow window = AppFactory.createWindow();
 		window.setDefaultCloseOperation(CheckersWindow.EXIT_ON_CLOSE);
 		window.setVisible(true);
 	}

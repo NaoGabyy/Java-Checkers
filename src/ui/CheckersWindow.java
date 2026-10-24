@@ -12,8 +12,6 @@ import javax.swing.JFrame;
 import javax.swing.JPanel;
 
 import model.Player;
-import network.CheckersNetworkHandler;
-import network.ConnectionListener;
 import network.Session;
 
 /**
@@ -43,39 +41,32 @@ public class CheckersWindow extends JFrame {
 	
 	private Session session2;
 	
-	public CheckersWindow() {
-		this(DEFAULT_WIDTH, DEFAULT_HEIGHT, DEFAULT_TITLE);
+	public CheckersWindow(CheckerBoard board, OptionPanel opts,
+			Session session1, Session session2) {
+		this(DEFAULT_WIDTH, DEFAULT_HEIGHT, DEFAULT_TITLE,
+				board, opts, session1, session2);
 	}
-	
-	public CheckersWindow(Player player1, Player player2) {
-		this();
-		setPlayer1(player1);
-		setPlayer2(player2);
-	}
-	
-	public CheckersWindow(int width, int height, String title) {
-		
+
+	public CheckersWindow(int width, int height, String title,
+			CheckerBoard board, OptionPanel opts,
+			Session session1, Session session2) {
+
 		// Setup the window
 		super(title);
 		super.setSize(width, height);
 		super.setLocationByPlatform(true);
-		
+
 		// Setup the components
 		JPanel layout = new JPanel(new BorderLayout());
-		this.board = new CheckerBoard(this);
-		this.opts = new OptionPanel(this);
+		this.board = board;
+		this.opts = opts;
 		layout.add(board, BorderLayout.CENTER);
 		layout.add(opts, BorderLayout.SOUTH);
 		this.add(layout);
-		
-		// Setup the network listeners
-		CheckersNetworkHandler session1Handler, session2Handler;
-		session1Handler = new CheckersNetworkHandler(true, this, board, opts);
-		session2Handler = new CheckersNetworkHandler(false, this, board, opts);
-		this.session1 = new Session(new ConnectionListener(
-				0, session1Handler), null, null, -1);
-		this.session2 = new Session(new ConnectionListener(
-				0, session2Handler), null, null, -1);
+
+		// Setup the network sessions
+		this.session1 = session1;
+		this.session2 = session2;
 	}
 	
 	public CheckerBoard getBoard() {
